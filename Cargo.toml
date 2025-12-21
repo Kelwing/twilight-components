@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "A declarative macro for building Discord components with twilight-model"
 license = "MIT"
-repository = "https://github.com/your-username/twilight-components-macro"
+repository = "https://github.com/Kelwing/twilight-components"
 keywords = ["discord", "twilight", "macro", "components"]
 categories = ["development-tools::procedural-macro-helpers"]
 
