@@ -261,14 +261,6 @@ async fn send_welcome(client: &Client, channel_id: Id<ChannelMarker>) {
 }
 ```
 
-## Design Principles
-
-1. **Visual Hierarchy** - The macro syntax mirrors the component tree structure
-2. **Minimal Boilerplate** - Sensible defaults for optional fields
-3. **Type Safety** - Compile-time checks via twilight-model's types
-4. **Expressiveness** - Full Rust expressions supported in all positions
-5. **Familiarity** - Syntax inspired by JSX/HTML for frontend developers
-
 ## Comparison
 
 | Feature | twilight-model | Builder Pattern | This Macro |
@@ -278,12 +270,6 @@ async fn send_welcome(client: &Client, channel_id: Id<ChannelMarker>) {
 | Nested Components | Tedious | Better | Natural |
 | Learning Curve | Moderate | Moderate | Low |
 | IDE Support | Full | Full | Partial |
-
-## Limitations
-
-- Macro expansion happens at compile time, so dynamic component types aren't supported
-- Error messages may reference generated code (use `cargo expand` to debug)
-- The `id` field is always set to `None` by default (Discord auto-assigns IDs)
 
 ## Contributing
 
