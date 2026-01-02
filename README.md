@@ -38,14 +38,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-twilight-components-macro = "0.1"
+twilight-components = "0.1"
 twilight-model = "0.17"
 ```
 
 ## Quick Start
 
 ```rust
-use twilight_components_macro::{component, components};
+use twilight_components::{component, components};
 
 // Single component
 let text = component!(Text("Welcome to my bot!"));
@@ -239,7 +239,7 @@ The `spacing` property accepts:
 
 ```rust
 use twilight_http::Client;
-use twilight_components_macro::components;
+use twilight_components::components;
 
 async fn send_welcome(client: &Client, channel_id: Id<ChannelMarker>) {
     let components = components!(
