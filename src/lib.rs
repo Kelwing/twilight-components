@@ -70,6 +70,7 @@
 //! | `Thumbnail { url }` | `Thumbnail` | `media.url` | No |
 //! | `File { url }` | `FileDisplay` | `file.url` | No |
 //! | `FileUpload { ... }` | `FileUpload` | - | No |
+//! | `Label { ... }` | `Label` | `label` | Yes (single component) |
 //! | `SelectMenu { ... }` | `SelectMenu` | - | Yes (options) |
 //! | `TextInput { ... }` | `TextInput` | - | No |
 
@@ -209,6 +210,9 @@ enum ComponentKind {
     File,
     FileUpload,
 
+    // Layout Components
+    Label,
+
     // Interactive Components
     ActionRow,
     Button,
@@ -232,6 +236,7 @@ impl Parse for ComponentKind {
             "Thumbnail" | "Thumb" => Ok(ComponentKind::Thumbnail),
             "File" | "FileDisplay" => Ok(ComponentKind::File),
             "FileUpload" | "Upload" => Ok(ComponentKind::FileUpload),
+            "Label" => Ok(ComponentKind::Label),
             "ActionRow" | "Row" => Ok(ComponentKind::ActionRow),
             "Button" | "Btn" => Ok(ComponentKind::Button),
             "SelectMenu" | "Select" => Ok(ComponentKind::SelectMenu),
@@ -241,7 +246,7 @@ impl Parse for ComponentKind {
             other => Err(syn::Error::new(
                 ident.span(),
                 format!(
-                    "Unknown component type: `{}`. Valid types are: Text, Container, Section, Separator, MediaGallery, Thumbnail, File, FileUpload, ActionRow, Button, SelectMenu, TextInput, MediaItem, SelectOption",
+                    "Unknown component type: `{}`. Valid types are: Text, Container, Section, Separator, MediaGallery, Thumbnail, File, FileUpload, Label, ActionRow, Button, SelectMenu, TextInput, MediaItem, SelectOption",
                     other
                 ),
             )),
@@ -265,6 +270,7 @@ impl ComponentKind {
             ComponentKind::Thumbnail => self.generate_thumbnail(properties, shorthand),
             ComponentKind::File => self.generate_file(properties, shorthand),
             ComponentKind::FileUpload => self.generate_file_upload(properties),
+            ComponentKind::Label => self.generate_label(properties, children, shorthand),
             ComponentKind::ActionRow => self.generate_action_row(properties, children),
             ComponentKind::Button => self.generate_button(properties, shorthand),
             ComponentKind::SelectMenu => self.generate_select_menu(properties, children),
@@ -544,6 +550,52 @@ impl ComponentKind {
                     max_values: #max_values,
                     min_values: #min_values,
                     required: #required,
+                }
+            )
+        }
+    }
+
+    fn generate_label(
+        &self,
+        properties: Option<&PropertyBlock>,
+        children: Option<&ChildBlock>,
+        shorthand: Option<&ShorthandContent>,
+    ) -> TokenStream2 {
+        let label = shorthand
+            .map(|s| s.to_token_stream())
+            .or_else(|| properties.and_then(|p| p.get("label")))
+            .map(|l| quote! { (#l).into() })
+            .unwrap_or_else(|| quote! { String::new() });
+
+        let id = properties
+            .and_then(|p| p.get("id"))
+            .unwrap_or_else(|| quote! { None });
+
+        let description = properties
+            .and_then(|p| p.get("description"))
+            .map(|d| quote! { Some((#d).into()) })
+            .unwrap_or_else(|| quote! { None });
+
+        // The Label wraps a single child component
+        let component = children
+            .and_then(|c| c.children.first())
+            .map(|child| quote! { Box::new(#child) })
+            .or_else(|| {
+                properties
+                    .and_then(|p| p.get("component"))
+                    .map(|c| quote! { Box::new(#c) })
+            })
+            .unwrap_or_else(|| {
+                quote! { compile_error!("Label requires a child component") }
+            });
+
+        quote! {
+            ::twilight_model::channel::message::Component::Label(
+                ::twilight_model::channel::message::component::Label {
+                    id: #id,
+                    label: #label,
+                    description: #description,
+                    component: #component,
                 }
             )
         }

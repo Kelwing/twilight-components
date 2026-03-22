@@ -91,9 +91,11 @@ ComponentType { field: value, ... } [ children, ... ]
 | `MediaItem(url)` | MediaGalleryItem | url | `description`, `spoiler` |
 | `Thumbnail(url)` | Thumbnail | url | `description`, `spoiler` |
 | `File(url)` | FileDisplay | url | `spoiler` |
+| `FileUpload { ... }` | FileUpload | - | `custom_id`, `min_values`, `max_values`, `required` |
+| `Label("text") [ ... ]` | Label | label | `description`, single child component |
 | `Select { ... }` | SelectMenu | - | `custom_id`, `kind`, `placeholder`, `min_values`, `max_values` |
 | `Option(label)` | SelectMenuOption | label | `value`, `description`, `emoji`, `default` |
-| `Input { ... }` | TextInput | - | `custom_id`, `label`, `style`, `placeholder`, `required` |
+| `Input { ... }` | TextInput | - | `custom_id`, `style`, `placeholder`, `required` |
 
 ### Aliases
 
@@ -109,6 +111,7 @@ For convenience, many components have shorter aliases:
 - `Select` = `SelectMenu`
 - `Option` = `SelectOption`
 - `Input` = `TextInput`
+- `Upload` = `FileUpload`
 
 ## Examples
 
@@ -191,28 +194,35 @@ let profile = component!(
 );
 ```
 
-### Modal Forms (TextInput)
+### Modal Forms (TextInput with Label)
 
 ```rust
 let modal_components = components!(
     Row [
-        Input {
-            custom_id: "name_input",
-            label: "Your Name",
-            style: Short,
-            placeholder: "Enter your name...",
-            required: true,
-        }
+        Label("Your Name") [
+            Input {
+                custom_id: "name_input",
+                style: Short,
+                placeholder: "Enter your name...",
+                required: true,
+            }
+        ]
     ],
     Row [
-        Input {
-            custom_id: "bio_input", 
-            label: "About You",
-            style: Paragraph,
-            placeholder: "Tell us about yourself...",
-            min_length: 10,
-            max_length: 500,
-        }
+        Label { label: "About You", description: "Tell us a bit about yourself" } [
+            Input {
+                custom_id: "bio_input",
+                style: Paragraph,
+                placeholder: "Tell us about yourself...",
+                min_length: 10,
+                max_length: 500,
+            }
+        ]
+    ],
+    Row [
+        Label("Attachment") [
+            Upload { custom_id: "file_upload", required: true }
+        ]
     ]
 );
 ```
