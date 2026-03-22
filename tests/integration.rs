@@ -684,6 +684,7 @@ fn test_text_input_minimal() {
     let input = component!(TextInput { custom_id: "input" });
 
     match input {
+        #[allow(deprecated)]
         Component::TextInput(ti) => {
             assert_eq!(ti.custom_id, "input");
             assert!(ti.label.is_none());
@@ -698,16 +699,15 @@ fn test_text_input_minimal() {
 }
 
 #[test]
-fn test_text_input_with_label() {
-    let input = component!(TextInput {
-        custom_id: "input",
-        label: "Your Name"
-    });
+fn test_text_input_label_not_exposed() {
+    // label is deprecated and not part of the DSL; the macro always sets it to None
+    let input = component!(TextInput { custom_id: "input" });
 
     match input {
+        #[allow(deprecated)]
         Component::TextInput(ti) => {
             assert_eq!(ti.custom_id, "input");
-            assert_eq!(ti.label, Some("Your Name".into()));
+            assert!(ti.label.is_none());
         }
         _ => panic!("Expected TextInput component"),
     }
@@ -757,7 +757,6 @@ fn test_text_input_short_style() {
 fn test_text_input_with_constraints() {
     let input = component!(Input {
         custom_id: "msg",
-        label: "Message",
         min_length: 10,
         max_length: 100,
         required: true,
@@ -1230,14 +1229,12 @@ fn test_modal_form_layout() {
     let form = components!(
         Row[Input {
             custom_id: "name",
-            label: "Your Name",
             style: Short,
             placeholder: "Enter name...",
             required: true
         }],
         Row[Input {
             custom_id: "bio",
-            label: "About You",
             style: Paragraph,
             min_length: 10,
             max_length: 500
@@ -1345,6 +1342,7 @@ fn test_text_input_defaults() {
     let input = component!(Input { custom_id: "test" });
 
     match input {
+        #[allow(deprecated)]
         Component::TextInput(ti) => {
             assert_eq!(ti.style, TextInputStyle::Short); // default
             assert!(ti.label.is_none());

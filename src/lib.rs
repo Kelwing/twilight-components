@@ -69,6 +69,7 @@
 //! | `MediaGallery [ ... ]` | `MediaGallery` | - | Yes (items) |
 //! | `Thumbnail { url }` | `Thumbnail` | `media.url` | No |
 //! | `File { url }` | `FileDisplay` | `file.url` | No |
+//! | `FileUpload { ... }` | `FileUpload` | - | No |
 //! | `SelectMenu { ... }` | `SelectMenu` | - | Yes (options) |
 //! | `TextInput { ... }` | `TextInput` | - | No |
 
@@ -206,6 +207,7 @@ enum ComponentKind {
     MediaGallery,
     Thumbnail,
     File,
+    FileUpload,
 
     // Interactive Components
     ActionRow,
@@ -229,6 +231,7 @@ impl Parse for ComponentKind {
             "MediaGallery" | "Gallery" => Ok(ComponentKind::MediaGallery),
             "Thumbnail" | "Thumb" => Ok(ComponentKind::Thumbnail),
             "File" | "FileDisplay" => Ok(ComponentKind::File),
+            "FileUpload" | "Upload" => Ok(ComponentKind::FileUpload),
             "ActionRow" | "Row" => Ok(ComponentKind::ActionRow),
             "Button" | "Btn" => Ok(ComponentKind::Button),
             "SelectMenu" | "Select" => Ok(ComponentKind::SelectMenu),
@@ -238,7 +241,7 @@ impl Parse for ComponentKind {
             other => Err(syn::Error::new(
                 ident.span(),
                 format!(
-                    "Unknown component type: `{}`. Valid types are: Text, Container, Section, Separator, MediaGallery, Thumbnail, File, ActionRow, Button, SelectMenu, TextInput, MediaItem, SelectOption",
+                    "Unknown component type: `{}`. Valid types are: Text, Container, Section, Separator, MediaGallery, Thumbnail, File, FileUpload, ActionRow, Button, SelectMenu, TextInput, MediaItem, SelectOption",
                     other
                 ),
             )),
@@ -261,6 +264,7 @@ impl ComponentKind {
             ComponentKind::MediaGallery => self.generate_media_gallery(properties, children),
             ComponentKind::Thumbnail => self.generate_thumbnail(properties, shorthand),
             ComponentKind::File => self.generate_file(properties, shorthand),
+            ComponentKind::FileUpload => self.generate_file_upload(properties),
             ComponentKind::ActionRow => self.generate_action_row(properties, children),
             ComponentKind::Button => self.generate_button(properties, shorthand),
             ComponentKind::SelectMenu => self.generate_select_menu(properties, children),
@@ -507,6 +511,44 @@ impl ComponentKind {
         }
     }
 
+    fn generate_file_upload(&self, properties: Option<&PropertyBlock>) -> TokenStream2 {
+        let id = properties
+            .and_then(|p| p.get("id"))
+            .unwrap_or_else(|| quote! { None });
+
+        let custom_id = properties
+            .and_then(|p| p.get("custom_id"))
+            .map(|c| quote! { (#c).into() })
+            .unwrap_or_else(|| quote! { String::new() });
+
+        let max_values = properties
+            .and_then(|p| p.get("max_values"))
+            .map(|m| quote! { Some(#m) })
+            .unwrap_or_else(|| quote! { None });
+
+        let min_values = properties
+            .and_then(|p| p.get("min_values"))
+            .map(|m| quote! { Some(#m) })
+            .unwrap_or_else(|| quote! { None });
+
+        let required = properties
+            .and_then(|p| p.get("required"))
+            .map(|r| quote! { Some(#r) })
+            .unwrap_or_else(|| quote! { None });
+
+        quote! {
+            ::twilight_model::channel::message::Component::FileUpload(
+                ::twilight_model::channel::message::component::FileUpload {
+                    id: #id,
+                    custom_id: #custom_id,
+                    max_values: #max_values,
+                    min_values: #min_values,
+                    required: #required,
+                }
+            )
+        }
+    }
+
     fn generate_action_row(
         &self,
         properties: Option<&PropertyBlock>,
@@ -688,11 +730,6 @@ impl ComponentKind {
             .map(|c| quote! { (#c).into() })
             .unwrap_or_else(|| quote! { String::new() });
 
-        let label = properties
-            .and_then(|p| p.get("label"))
-            .map(|l| quote! { Some((#l).into()) })
-            .unwrap_or_else(|| quote! { None });
-
         let style = properties
             .and_then(|p| p.get("style"))
             .map(resolve_text_input_style)
@@ -730,7 +767,8 @@ impl ComponentKind {
                 ::twilight_model::channel::message::component::TextInput {
                     id: #id,
                     custom_id: #custom_id,
-                    label: #label,
+                    #[allow(deprecated)]
+                    label: None,
                     max_length: #max_length,
                     min_length: #min_length,
                     placeholder: #placeholder,
