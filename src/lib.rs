@@ -742,6 +742,7 @@ impl ComponentKind {
 
         let channel_types = properties
             .and_then(|p| p.get("channel_types"))
+            .map(|m| quote! { Some(#m) })
             .unwrap_or_else(|| quote! { None });
 
         let default_values = properties
