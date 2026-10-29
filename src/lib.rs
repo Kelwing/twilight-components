@@ -41,8 +41,8 @@
 //!     Text("Welcome!"),
 //!     Separator,
 //!     ActionRow [
-//!         Button { style: Primary, label: "OK" },
-//!         Button { style: Danger, label: "Cancel" },
+//!         Button { style: Primary, label: "OK", custom_id: "ok" },
+//!         Button { style: Danger, label: "Cancel", custom_id: "cancel" },
 //!     ],
 //! ])
 //! ```
@@ -73,6 +73,24 @@
 //! | `Label { ... }` | `Label` | `label` | Yes (single component) |
 //! | `SelectMenu { ... }` | `SelectMenu` | - | Yes (options) |
 //! | `TextInput { ... }` | `TextInput` | - | No |
+//!
+//! ## Compile-time Validation
+//!
+//! Both macros check the components against the rules in Discord's documentation, so
+//! most payloads that Discord would reject fail to compile instead. The checks cover
+//! required fields, unknown fields, nesting, child counts, field combinations (such as
+//! button styles), string lengths and number ranges.
+//!
+//! Only literal values are checked. A value that is computed at runtime, such as
+//! `format!(..)` or a variable, is not checked. Use `twilight-validate` for those.
+//!
+//! The macro infers whether the components are for a message or a modal: `Label`,
+//! `TextInput` and `FileUpload` are modal-only, and `ActionRow`, `Button`, `Container`,
+//! `Section`, `Separator`, `MediaGallery`, `Thumbnail` and `File` are message-only.
+//! An invocation that mixes the two does not compile. `components!` also checks the
+//! top-level components and the component limits (40 for a message, 5 for a modal).
+
+mod validate;
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
@@ -91,6 +109,9 @@ use syn::{
 #[proc_macro]
 pub fn component(input: TokenStream) -> TokenStream {
     let component = parse_macro_input!(input as ComponentNode);
+    if let Err(err) = validate::validate(&[&component], validate::Root::Single) {
+        return compile_errors(err);
+    }
     component.to_token_stream().into()
 }
 
@@ -113,7 +134,24 @@ pub fn component(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn components(input: TokenStream) -> TokenStream {
     let components = parse_macro_input!(input as ComponentList);
+    let nodes: Vec<&ComponentNode> = components.components.iter().collect();
+    if let Err(err) = validate::validate(&nodes, validate::Root::List) {
+        return compile_errors(err);
+    }
     components.to_token_stream().into()
+}
+
+/// Expands to every validation error. The block keeps the output a single
+/// expression, so the macro still works in expression position.
+fn compile_errors(err: syn::Error) -> TokenStream {
+    let errors = err.to_compile_error();
+    quote! {
+        {
+            #errors
+            ::core::unreachable!()
+        }
+    }
+    .into()
 }
 
 // =============================================================================
@@ -144,6 +182,7 @@ impl ToTokens for ComponentList {
 
 /// A single component node in the DSL
 struct ComponentNode {
+    ident: Ident,
     kind: ComponentKind,
     properties: Option<PropertyBlock>,
     children: Option<ChildBlock>,
@@ -152,6 +191,7 @@ struct ComponentNode {
 
 impl Parse for ComponentNode {
     fn parse(input: ParseStream) -> Result<Self> {
+        let ident: Ident = input.fork().parse()?;
         let kind: ComponentKind = input.parse()?;
 
         // Parse optional shorthand content: ComponentType(content)
@@ -178,6 +218,7 @@ impl Parse for ComponentNode {
         };
 
         Ok(ComponentNode {
+            ident,
             kind,
             properties,
             children,
@@ -198,7 +239,7 @@ impl ToTokens for ComponentNode {
 }
 
 /// The type of component being constructed
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ComponentKind {
     // Display Components
     Text,
@@ -243,6 +284,13 @@ impl Parse for ComponentKind {
             "TextInput" | "Input" => Ok(ComponentKind::TextInput),
             "MediaItem" | "Item" => Ok(ComponentKind::MediaItem),
             "SelectOption" | "Option" => Ok(ComponentKind::SelectOption),
+            "RadioGroup" | "Radio" | "CheckboxGroup" | "Checkbox" => Err(syn::Error::new(
+                ident.span(),
+                format!(
+                    "`{}` is a Discord component that twilight-model 0.17 does not support yet",
+                    ident
+                ),
+            )),
             other => Err(syn::Error::new(
                 ident.span(),
                 format!(
@@ -255,6 +303,27 @@ impl Parse for ComponentKind {
 }
 
 impl ComponentKind {
+    /// The canonical macro name, used in error messages.
+    fn name(self) -> &'static str {
+        match self {
+            ComponentKind::Text => "Text",
+            ComponentKind::Container => "Container",
+            ComponentKind::Section => "Section",
+            ComponentKind::Separator => "Separator",
+            ComponentKind::MediaGallery => "MediaGallery",
+            ComponentKind::Thumbnail => "Thumbnail",
+            ComponentKind::File => "File",
+            ComponentKind::FileUpload => "FileUpload",
+            ComponentKind::Label => "Label",
+            ComponentKind::ActionRow => "ActionRow",
+            ComponentKind::Button => "Button",
+            ComponentKind::SelectMenu => "SelectMenu",
+            ComponentKind::TextInput => "TextInput",
+            ComponentKind::MediaItem => "MediaItem",
+            ComponentKind::SelectOption => "SelectOption",
+        }
+    }
+
     fn generate(
         &self,
         properties: Option<&PropertyBlock>,
@@ -292,6 +361,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         quote! {
@@ -318,6 +388,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         // accent_color is Option<Option<u32>> - wrap user value in Some(Some(...))
@@ -358,18 +429,14 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
-        // Accessory is required (Box<Component>) - must be a Button or Thumbnail
-        // Both Button and Thumbnail now return Component variants, so just wrap in Box
+        // Accessory is required (Box<Component>); validation guarantees it is present
         let accessory = properties
             .and_then(|p| p.get("accessory"))
             .map(|acc| quote! { Box::new(#acc) })
-            .unwrap_or_else(|| {
-                // If no accessory provided, generate code that will fail to compile
-                // with a clear error about missing accessory
-                quote! { compile_error!("Section requires an accessory (Button or Thumbnail)") }
-            });
+            .expect("validated: Section has an accessory");
 
         quote! {
             ::twilight_model::channel::message::Component::Section(
@@ -385,6 +452,7 @@ impl ComponentKind {
     fn generate_separator(&self, properties: Option<&PropertyBlock>) -> TokenStream2 {
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         // divider is Option<bool> - default to Some(true) per design
@@ -396,6 +464,7 @@ impl ComponentKind {
         // spacing is Option<SeparatorSpacingSize>
         let spacing = properties
             .and_then(|p| p.get("spacing"))
+            .map(resolve_separator_spacing)
             .map(|s| quote! { Some(#s) })
             .unwrap_or_else(|| quote! { None });
 
@@ -424,6 +493,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         quote! {
@@ -448,6 +518,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         // description is Option<Option<String>> - wrap in Some(Some(...)) when provided
@@ -492,6 +563,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         // spoiler is Option<bool>
@@ -520,6 +592,7 @@ impl ComponentKind {
     fn generate_file_upload(&self, properties: Option<&PropertyBlock>) -> TokenStream2 {
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         let custom_id = properties
@@ -569,6 +642,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         let description = properties
@@ -585,9 +659,7 @@ impl ComponentKind {
                     .and_then(|p| p.get("component"))
                     .map(|c| quote! { Box::new(#c) })
             })
-            .unwrap_or_else(|| {
-                quote! { compile_error!("Label requires a child component") }
-            });
+            .expect("validated: Label has a child component");
 
         quote! {
             ::twilight_model::channel::message::Component::Label(
@@ -615,6 +687,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         quote! {
@@ -646,6 +719,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         let style = properties
@@ -670,11 +744,13 @@ impl ComponentKind {
             .unwrap_or_else(|| quote! { false });
 
         let emoji = properties
-            .and_then(|p| p.get("emoji"))
+            .and_then(|p| p.get_value("emoji"))
+            .map(resolve_emoji)
             .unwrap_or_else(|| quote! { None });
 
         let sku_id = properties
-            .and_then(|p| p.get("sku_id"))
+            .and_then(|p| p.get_value("sku_id"))
+            .map(resolve_sku_id)
             .unwrap_or_else(|| quote! { None });
 
         quote! {
@@ -707,6 +783,7 @@ impl ComponentKind {
 
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         let custom_id = properties
@@ -747,6 +824,7 @@ impl ComponentKind {
 
         let default_values = properties
             .and_then(|p| p.get("default_values"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         let required = properties
@@ -776,6 +854,7 @@ impl ComponentKind {
     fn generate_text_input(&self, properties: Option<&PropertyBlock>) -> TokenStream2 {
         let id = properties
             .and_then(|p| p.get("id"))
+            .map(optional)
             .unwrap_or_else(|| quote! { None });
 
         let custom_id = properties
@@ -891,7 +970,8 @@ impl ComponentKind {
             .unwrap_or_else(|| quote! { None });
 
         let emoji = properties
-            .and_then(|p| p.get("emoji"))
+            .and_then(|p| p.get_value("emoji"))
+            .map(resolve_emoji)
             .unwrap_or_else(|| quote! { None });
 
         let default = properties
@@ -931,10 +1011,14 @@ impl Parse for PropertyBlock {
 
 impl PropertyBlock {
     fn get(&self, name: &str) -> Option<TokenStream2> {
+        self.get_value(name).map(|v| v.to_token_stream())
+    }
+
+    fn get_value(&self, name: &str) -> Option<&PropertyValue> {
         self.properties
             .iter()
             .find(|p| p.key == name)
-            .map(|p| p.value.to_token_stream())
+            .map(|p| &p.value)
     }
 }
 
@@ -1077,6 +1161,52 @@ fn resolve_select_menu_type(kind: TokenStream2) -> TokenStream2 {
             quote! { ::twilight_model::channel::message::component::SelectMenuType::Channel }
         }
         _ => kind,
+    }
+}
+
+/// Accepts either `T` or `Option<T>` for an `Option<T>` field.
+fn optional(value: TokenStream2) -> TokenStream2 {
+    quote! { ::core::convert::Into::<::core::option::Option<_>>::into(#value) }
+}
+
+/// A string literal becomes a Unicode emoji; anything else is passed through `optional`.
+fn resolve_emoji(value: &PropertyValue) -> TokenStream2 {
+    if let PropertyValue::Expr(Expr::Lit(syn::ExprLit {
+        lit: syn::Lit::Str(name),
+        ..
+    })) = value
+    {
+        return quote! {
+            Some(::twilight_model::channel::message::EmojiReactionType::Unicode {
+                name: (#name).into(),
+            })
+        };
+    }
+    optional(value.to_token_stream())
+}
+
+/// An integer literal becomes an `Id`; anything else is passed through `optional`.
+fn resolve_sku_id(value: &PropertyValue) -> TokenStream2 {
+    if let PropertyValue::Expr(Expr::Lit(syn::ExprLit {
+        lit: syn::Lit::Int(id),
+        ..
+    })) = value
+    {
+        return quote! { Some(::twilight_model::id::Id::new(#id)) };
+    }
+    optional(value.to_token_stream())
+}
+
+fn resolve_separator_spacing(spacing: TokenStream2) -> TokenStream2 {
+    let spacing_str = spacing.to_string();
+    match spacing_str.as_str() {
+        "Small" => {
+            quote! { ::twilight_model::channel::message::component::SeparatorSpacingSize::Small }
+        }
+        "Large" => {
+            quote! { ::twilight_model::channel::message::component::SeparatorSpacingSize::Large }
+        }
+        _ => spacing,
     }
 }
 

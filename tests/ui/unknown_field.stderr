@@ -1,0 +1,11 @@
+error: unknown field `custom_i` for `Button`; expected one of `id`, `style`, `label`, `custom_id`, `url`, `disabled`, `emoji`, `sku_id`
+ --> tests/ui/unknown_field.rs:4:33
+  |
+4 |     let _ = component!(Button { custom_i: "a" });
+  |                                 ^^^^^^^^
+
+error: `Primary` buttons must have a `custom_id`
+ --> tests/ui/unknown_field.rs:4:24
+  |
+4 |     let _ = component!(Button { custom_i: "a" });
+  |                        ^^^^^^

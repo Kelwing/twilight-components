@@ -1,0 +1,5 @@
+error: `Primary` buttons must have a `custom_id`
+ --> tests/ui/button_missing_custom_id.rs:4:24
+  |
+4 |     let _ = component!(Button { label: "Click" });
+  |                        ^^^^^^

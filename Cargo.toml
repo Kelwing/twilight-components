@@ -18,3 +18,4 @@ syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
 
 [dev-dependencies]
 twilight-model = "0.17"
+trybuild = "1.0"

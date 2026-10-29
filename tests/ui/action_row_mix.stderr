@@ -1,0 +1,11 @@
+error: an `ActionRow` with a `SelectMenu` cannot also contain buttons
+ --> tests/ui/action_row_mix.rs:4:29
+  |
+4 |     let _ = component!(Row [Button { custom_id: "a" }, Select { custom_id: "s", kind: User }]);
+  |                             ^^^^^^
+
+error: an `ActionRow` with a `SelectMenu` can only contain that one select menu
+ --> tests/ui/action_row_mix.rs:4:56
+  |
+4 |     let _ = component!(Row [Button { custom_id: "a" }, Select { custom_id: "s", kind: User }]);
+  |                                                        ^^^^^^

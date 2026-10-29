@@ -1,0 +1,5 @@
+error: `Label` can only be used in modals, but this invocation also contains `Container`, which can only be used in messages
+ --> tests/ui/mixed_context.rs:4:48
+  |
+4 |     let _ = components!(Container [Text("a")], Label("Name") [Input { custom_id: "name" }]);
+  |                                                ^^^^^

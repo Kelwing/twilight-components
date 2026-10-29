@@ -1,7 +1,12 @@
 use twilight_components::{component, components};
-use twilight_model::channel::message::{
-    Component,
-    component::{ButtonStyle, SelectMenuType, SeparatorSpacingSize, TextInputStyle},
+use twilight_model::{
+    channel::message::{
+        Component, EmojiReactionType,
+        component::{
+            ButtonStyle, SelectDefaultValue, SelectMenuType, SeparatorSpacingSize, TextInputStyle,
+        },
+    },
+    id::Id,
 };
 
 // =============================================================================
@@ -78,7 +83,7 @@ fn test_text_display_with_expression() {
 #[test]
 fn test_text_display_empty() {
     // Test default when no content provided
-    let text = component!(Text {});
+    let text = component!(Text { content: "" });
 
     match text {
         Component::TextDisplay(td) => {
@@ -300,12 +305,12 @@ fn test_separator_all_properties() {
 // =============================================================================
 
 #[test]
-fn test_action_row_empty() {
-    let row = component!(ActionRow []);
+fn test_action_row_single_button() {
+    let row = component!(ActionRow[Button { custom_id: "a" }]);
 
     match row {
         Component::ActionRow(ar) => {
-            assert!(ar.components.is_empty());
+            assert_eq!(ar.components.len(), 1);
             assert!(ar.id.is_none());
         }
         _ => panic!("Expected ActionRow component"),
@@ -314,11 +319,11 @@ fn test_action_row_empty() {
 
 #[test]
 fn test_action_row_alias() {
-    let row = component!(Row []);
+    let row = component!(Row[Button { custom_id: "a" }]);
 
     match row {
         Component::ActionRow(ar) => {
-            assert!(ar.components.is_empty());
+            assert_eq!(ar.components.len(), 1);
         }
         _ => panic!("Expected ActionRow component"),
     }
@@ -326,7 +331,7 @@ fn test_action_row_alias() {
 
 #[test]
 fn test_action_row_with_id() {
-    let row = component!(ActionRow { id: Some(10) } []);
+    let row = component!(ActionRow { id: Some(10) }[Button { custom_id: "a" }]);
 
     match row {
         Component::ActionRow(ar) => {
@@ -518,7 +523,12 @@ fn test_button_with_url_no_custom_id() {
 
 #[test]
 fn test_select_menu_minimal() {
-    let select = component!(SelectMenu { custom_id: "menu" } []);
+    let select = component!(
+        SelectMenu { custom_id: "menu" }[Option {
+            label: "A",
+            value: "a"
+        }]
+    );
 
     match select {
         Component::SelectMenu(sm) => {
@@ -535,7 +545,12 @@ fn test_select_menu_minimal() {
 
 #[test]
 fn test_select_menu_alias() {
-    let select = component!(Select { custom_id: "sel" } []);
+    let select = component!(
+        Select { custom_id: "sel" }[Option {
+            label: "A",
+            value: "a"
+        }]
+    );
 
     match select {
         Component::SelectMenu(_) => {}
@@ -563,7 +578,15 @@ fn test_select_menu_with_options() {
 
 #[test]
 fn test_select_menu_types() {
-    let text = component!(Select { custom_id: "t", kind: Text } []);
+    let text = component!(
+        Select {
+            custom_id: "t",
+            kind: Text
+        }[Option {
+            label: "A",
+            value: "a"
+        }]
+    );
     let user = component!(Select { custom_id: "u", kind: User } []);
     let role = component!(Select { custom_id: "r", kind: Role } []);
     let channel = component!(Select { custom_id: "c", kind: Channel } []);
@@ -593,7 +616,15 @@ fn test_select_menu_types() {
 
 #[test]
 fn test_select_menu_with_placeholder() {
-    let select = component!(Select { custom_id: "s", placeholder: "Choose..." } []);
+    let select = component!(
+        Select {
+            custom_id: "s",
+            placeholder: "Choose..."
+        }[Option {
+            label: "A",
+            value: "a"
+        }]
+    );
 
     match select {
         Component::SelectMenu(sm) => {
@@ -605,7 +636,16 @@ fn test_select_menu_with_placeholder() {
 
 #[test]
 fn test_select_menu_with_min_max_values() {
-    let select = component!(Select { custom_id: "s", min_values: 1, max_values: 5 } []);
+    let select = component!(
+        Select {
+            custom_id: "s",
+            min_values: 1,
+            max_values: 5
+        }[Option {
+            label: "A",
+            value: "a"
+        }]
+    );
 
     match select {
         Component::SelectMenu(sm) => {
@@ -618,7 +658,15 @@ fn test_select_menu_with_min_max_values() {
 
 #[test]
 fn test_select_menu_disabled() {
-    let select = component!(Select { custom_id: "s", disabled: true } []);
+    let select = component!(
+        Select {
+            custom_id: "s",
+            disabled: true
+        }[Option {
+            label: "A",
+            value: "a"
+        }]
+    );
 
     match select {
         Component::SelectMenu(sm) => {
@@ -829,10 +877,16 @@ fn test_section_with_thumbnail_accessory() {
 
 #[test]
 fn test_section_with_id_and_accessory() {
-    let section = component!(Section {
-        id: Some(99),
-        accessory: Button { style: Primary, custom_id: "btn", label: "Click" }
-    } []);
+    let section = component!(
+        Section {
+            id: Some(99),
+            accessory: Button {
+                style: Primary,
+                custom_id: "btn",
+                label: "Click"
+            }
+        }[Text("Hi")]
+    );
 
     match section {
         Component::Section(s) => {
@@ -865,12 +919,12 @@ fn test_section_multiple_text_children() {
 // =============================================================================
 
 #[test]
-fn test_media_gallery_empty() {
-    let gallery = component!(MediaGallery []);
+fn test_media_gallery_single_item() {
+    let gallery = component!(MediaGallery[Item("https://example.com/a.png")]);
 
     match gallery {
         Component::MediaGallery(mg) => {
-            assert!(mg.items.is_empty());
+            assert_eq!(mg.items.len(), 1);
             assert!(mg.id.is_none());
         }
         _ => panic!("Expected MediaGallery component"),
@@ -894,7 +948,7 @@ fn test_media_gallery_with_items() {
 
 #[test]
 fn test_media_gallery_alias() {
-    let gallery = component!(Gallery []);
+    let gallery = component!(Gallery[Item("https://example.com/a.png")]);
 
     match gallery {
         Component::MediaGallery(_) => {}
@@ -948,7 +1002,7 @@ fn test_media_item_no_spoiler_default() {
 
 #[test]
 fn test_media_gallery_with_id() {
-    let gallery = component!(MediaGallery { id: Some(7) } []);
+    let gallery = component!(MediaGallery { id: Some(7) }[Item("https://example.com/a.png")]);
 
     match gallery {
         Component::MediaGallery(mg) => {
@@ -1023,11 +1077,11 @@ fn test_thumbnail_no_spoiler_default() {
 
 #[test]
 fn test_file_display_shorthand() {
-    let file = component!(File("https://example.com/doc.pdf"));
+    let file = component!(File("attachment://doc.pdf"));
 
     match file {
         Component::File(fd) => {
-            assert_eq!(fd.file.url, "https://example.com/doc.pdf");
+            assert_eq!(fd.file.url, "attachment://doc.pdf");
             assert!(fd.spoiler.is_none());
         }
         _ => panic!("Expected File component"),
@@ -1036,7 +1090,7 @@ fn test_file_display_shorthand() {
 
 #[test]
 fn test_file_display_alias() {
-    let file = component!(FileDisplay("https://example.com/f.txt"));
+    let file = component!(FileDisplay("attachment://f.txt"));
 
     match file {
         Component::File(_) => {}
@@ -1047,7 +1101,7 @@ fn test_file_display_alias() {
 #[test]
 fn test_file_display_with_spoiler() {
     let file = component!(File {
-        url: "https://example.com/file.zip",
+        url: "attachment://file.zip",
         spoiler: true
     });
 
@@ -1062,7 +1116,7 @@ fn test_file_display_with_spoiler() {
 #[test]
 fn test_file_display_no_spoiler_default() {
     let file = component!(File {
-        url: "https://example.com/file.zip"
+        url: "attachment://file.zip"
     });
 
     match file {
@@ -1227,13 +1281,13 @@ fn test_format_macro_in_text() {
 #[test]
 fn test_modal_form_layout() {
     let form = components!(
-        Row[Input {
+        Label("Name")[Input {
             custom_id: "name",
             style: Short,
             placeholder: "Enter name...",
             required: true
         }],
-        Row[Input {
+        Label("Bio")[Input {
             custom_id: "bio",
             style: Paragraph,
             min_length: 10,
@@ -1244,9 +1298,9 @@ fn test_modal_form_layout() {
     assert_eq!(form.len(), 2);
 
     match &form[0] {
-        Component::ActionRow(ar) => {
-            assert_eq!(ar.components.len(), 1);
-            match &ar.components[0] {
+        Component::Label(label) => {
+            assert_eq!(label.label, "Name");
+            match label.component.as_ref() {
                 Component::TextInput(ti) => {
                     assert_eq!(ti.custom_id, "name");
                     assert_eq!(ti.style, TextInputStyle::Short);
@@ -1255,7 +1309,7 @@ fn test_modal_form_layout() {
                 _ => panic!("Expected TextInput"),
             }
         }
-        _ => panic!("Expected ActionRow"),
+        _ => panic!("Expected Label"),
     }
 }
 
@@ -1320,7 +1374,12 @@ fn test_button_defaults() {
 
 #[test]
 fn test_select_menu_defaults() {
-    let select = component!(Select { custom_id: "test" } []);
+    let select = component!(
+        Select { custom_id: "test" }[Option {
+            label: "A",
+            value: "a"
+        }]
+    );
 
     match select {
         Component::SelectMenu(sm) => {
@@ -1417,7 +1476,7 @@ fn test_thumbnail_defaults() {
 
 #[test]
 fn test_file_defaults() {
-    let file = component!(File("https://example.com/file.txt"));
+    let file = component!(File("attachment://file.txt"));
 
     match file {
         Component::File(f) => {
@@ -1425,5 +1484,170 @@ fn test_file_defaults() {
             assert!(f.spoiler.is_none());
         }
         _ => panic!("Expected File"),
+    }
+}
+
+// =============================================================================
+// Option Wrapping and Shorthand Tests
+// =============================================================================
+
+#[test]
+fn test_id_accepts_plain_and_option_values() {
+    let plain = component!(Text {
+        content: "a",
+        id: 1
+    });
+    let wrapped = component!(Text {
+        content: "b",
+        id: Some(2)
+    });
+    let maybe: Option<i32> = None;
+    let from_var = component!(Text {
+        content: "c",
+        id: maybe
+    });
+
+    match (plain, wrapped, from_var) {
+        (Component::TextDisplay(a), Component::TextDisplay(b), Component::TextDisplay(c)) => {
+            assert_eq!(a.id, Some(1));
+            assert_eq!(b.id, Some(2));
+            assert_eq!(c.id, None);
+        }
+        _ => panic!("Expected TextDisplay components"),
+    }
+}
+
+#[test]
+fn test_button_unicode_emoji_shorthand() {
+    let btn = component!(Button {
+        label: "Like",
+        custom_id: "like",
+        emoji: "👍"
+    });
+
+    match btn {
+        Component::Button(b) => {
+            assert_eq!(
+                b.emoji,
+                Some(EmojiReactionType::Unicode {
+                    name: "👍".to_owned()
+                })
+            );
+        }
+        _ => panic!("Expected Button"),
+    }
+}
+
+#[test]
+fn test_button_emoji_accepts_plain_and_option_values() {
+    let custom = EmojiReactionType::Custom {
+        animated: false,
+        id: Id::new(625891304148303894),
+        name: Some("rogue".to_owned()),
+    };
+    let plain = component!(Button {
+        custom_id: "a",
+        emoji: custom.clone()
+    });
+    let wrapped = component!(Button {
+        custom_id: "b",
+        emoji: Some(custom.clone())
+    });
+    let none = component!(Button {
+        custom_id: "c",
+        emoji: None
+    });
+
+    match (plain, wrapped, none) {
+        (Component::Button(a), Component::Button(b), Component::Button(c)) => {
+            assert_eq!(a.emoji, Some(custom.clone()));
+            assert_eq!(b.emoji, Some(custom));
+            assert!(c.emoji.is_none());
+        }
+        _ => panic!("Expected Buttons"),
+    }
+}
+
+#[test]
+fn test_select_option_unicode_emoji_shorthand() {
+    let select = component!(Select { custom_id: "s" } [
+        Option { label: "Apple", value: "apple", emoji: "🍎" },
+    ]);
+
+    match select {
+        Component::SelectMenu(sm) => {
+            let options = sm.options.unwrap();
+            assert_eq!(
+                options[0].emoji,
+                Some(EmojiReactionType::Unicode {
+                    name: "🍎".to_owned()
+                })
+            );
+        }
+        _ => panic!("Expected SelectMenu"),
+    }
+}
+
+#[test]
+fn test_premium_button_sku_id_shorthand() {
+    let literal = component!(Button {
+        style: Premium,
+        sku_id: 1234567890
+    });
+    let id = Id::new(42);
+    let plain = component!(Button {
+        style: Premium,
+        sku_id: id
+    });
+    let wrapped = component!(Button {
+        style: Premium,
+        sku_id: Some(id)
+    });
+
+    match (literal, plain, wrapped) {
+        (Component::Button(a), Component::Button(b), Component::Button(c)) => {
+            assert_eq!(a.style, ButtonStyle::Premium);
+            assert_eq!(a.sku_id, Some(Id::new(1234567890)));
+            assert_eq!(b.sku_id, Some(id));
+            assert_eq!(c.sku_id, Some(id));
+        }
+        _ => panic!("Expected Buttons"),
+    }
+}
+
+#[test]
+fn test_select_default_values_accepts_plain_and_option_values() {
+    let user = SelectDefaultValue::User(Id::new(1));
+    let plain = component!(Select {
+        custom_id: "a",
+        kind: User,
+        default_values: vec![user]
+    });
+    let wrapped = component!(Select {
+        custom_id: "b",
+        kind: User,
+        default_values: Some(vec![user])
+    });
+
+    match (plain, wrapped) {
+        (Component::SelectMenu(a), Component::SelectMenu(b)) => {
+            assert_eq!(a.default_values, Some(vec![user]));
+            assert_eq!(b.default_values, Some(vec![user]));
+        }
+        _ => panic!("Expected SelectMenus"),
+    }
+}
+
+#[test]
+fn test_separator_spacing_shorthand() {
+    let small = component!(Separator { spacing: Small });
+    let large = component!(Sep { spacing: Large });
+
+    match (small, large) {
+        (Component::Separator(s), Component::Separator(l)) => {
+            assert_eq!(s.spacing, Some(SeparatorSpacingSize::Small));
+            assert_eq!(l.spacing, Some(SeparatorSpacingSize::Large));
+        }
+        _ => panic!("Expected Separators"),
     }
 }

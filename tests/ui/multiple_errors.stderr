@@ -1,0 +1,11 @@
+error: `Link` buttons must have a `url`
+ --> tests/ui/multiple_errors.rs:4:24
+  |
+4 |     let _ = component!(Button { style: Link, custom_id: "a" });
+  |                        ^^^^^^
+
+error: `Link` buttons cannot have a `custom_id`
+ --> tests/ui/multiple_errors.rs:4:46
+  |
+4 |     let _ = component!(Button { style: Link, custom_id: "a" });
+  |                                              ^^^^^^^^^

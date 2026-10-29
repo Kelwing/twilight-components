@@ -1,0 +1,5 @@
+error: `label` can be at most 45 characters; it is 50
+ --> tests/ui/label_too_long.rs:4:31
+  |
+4 |     let _ = components!(Label("This label is far too long to fit within the limit") [Input { custom_id: "a" }]);
+  |                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: a select menu can have at most 25 options
+  --> tests/ui/too_many_options.rs:13:45
+   |
+13 |         Option { label: "o", value: "24" }, Option { label: "o", value: "25" },
+   |                                             ^^^^^^
